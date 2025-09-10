@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Car Rental Calculator</title>
+  <style>
+    body { font-family: Arial, sans-serif; padding: 20px; background: #f9f9f9; }
+    h2 { margin-bottom: 15px; }
+    .form-container {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 30px;
+      background: #fff;
+      padding: 20px;
+      border-radius: 10px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+    }
+    label { display: block; margin-top: 10px; font-weight: bold; }
+    input, select { padding: 5px; width: 95%; margin-top: 5px; }
+    .section-title {
+      margin-top: 20px; font-size: 16px; font-weight: bold;
+      color: #333; border-bottom: 1px solid #ddd; padding-bottom: 5px;
+    }
+    button {
+      margin-top: 20px; padding: 10px 20px; background: #0077cc;
+      color: white; border: none; border-radius: 5px; cursor: pointer;
+    }
+    button:hover { background: #005fa3; }
+    .total {
+      margin-top: 30px; background: #fff; padding: 20px;
+      border-radius: 10px; box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+      font-size: 15px; white-space: pre-line;
+    }
+    .total strong { font-size: 16px; }
+  </style>
+</head>
+<body>
+
+  <h2>Car Rental Calculation Form</h2>
+
+  <div class="form-container">
+    <!-- Left Column -->
+    <div>
+      <div class="section-title">Agent Info</div>
+      <label>Agent Name:<input type="text" id="agentName"></label>
+      <label>Ext:<input type="text" id="ext"></label>
+      <label>Company:<input type="text" id="company"></label>
+
+      <div class="section-title">Client's Info</div>
+      <label>Renter's Full Name:<input type="text" id="clientName"></label>
+      <label>Phone:<input type="text" id="phone"></label>
+      <label>Email:<input type="email" id="email"></label>
+      <label>Address:<input type="text" id="address"></label>
+      <label>Zip Code:<input type="text" id="zip"></label>
+    </div>
+
+    <!-- Right Column -->
+    <div>
+      <div class="section-title">Rental Info</div>
+      <label>Pick-up Date & Time:<input type="datetime-local" id="pickup"></label>
+      <label>Drop-off Date & Time:<input type="datetime-local" id="dropoff" onchange="calcDays()"></label>
+
+      <label>Car Type:
+        <select id="carType" onchange="populateModels()">
+          <option value="">-- Select Car Type --</option>
+          <option value="compact">Compact</option>
+          <option value="midsize">Midsize</option>
+          <option value="fullsize">Fullsize</option>
+        </select>
+      </label>
+
+      <label>Car Model:<select id="carModel"><option value="">-- Select Car Model --</option></select></label>
+
+      <label>Rate Amount ($):<input type="number" id="rate"></label>
+      <label>Days:<input type="number" id="days" readonly></label>
+      <label>Security Deposit ($):<input type="number" id="deposit"></label>
+      <label>Add-ons ($):<input type="number" id="addons"></label>
+      <label>Discount (%):<input type="number" id="discount"></label>
+    </div>
+  </div>
+
+  <button onclick="calculateTotal()">Calculate Total</button>
+  <button onclick="sendWhatsApp()">Send to WhatsApp</button>
+
+  <div class="total" id="result"></div>
+
+  <script>
+    // Car database
+    const carOptions = {
+      compact: ["Honda Civic","Toyota Corolla","Hyundai Elantra","Kia Forte / K4","Mazda 3",
+        "Nissan Sentra","Subaru Impreza","Volkswagen Jetta","Volkswagen Golf","Chevrolet Cobalt",
+        "Ford Focus","Ford Fiesta","Nissan Versa","Mitsubishi Mirage G4","Honda Fit",
+        "Toyota Yaris","Kia Rio","Chevy Spark","Fiat 500","Mini Cooper"],
+      midsize: ["Toyota Camry","Honda Accord","Hyundai Sonata","Kia K5","Subaru Legacy",
+        "Nissan Altima","Chevrolet Malibu"],
+      fullsize: ["Honda CR-V","Kia Sportage","2025 Mazda CX-5","Kia Telluride","Honda Pilot",
+        "Hyundai Palisade","Ford Expedition","Chevrolet Tahoe","Genesis GV70","Audi Q5",
+        "Hyundai Tucson Hybrid","Hyundai Ioniq 5 (electric SUV)"]
+    };
+
+    const carRates = {
+      compact: {"Honda Civic":55,"Toyota Corolla":52,"Hyundai Elantra":50,"Kia Forte / K4":48,"Mazda 3":53,"Nissan Sentra":51,"Subaru Impreza":54,"Volkswagen Jetta":56,"Volkswagen Golf":57,"Chevrolet Cobalt":49,"Ford Focus":50,"Ford Fiesta":48,"Nissan Versa":47,"Mitsubishi Mirage G4":46,"Honda Fit":50,"Toyota Yaris":48,"Kia Rio":45,"Chevy Spark":44,"Fiat 500":46,"Mini Cooper":60},
+      midsize: {"Toyota Camry":65,"Honda Accord":66,"Hyundai Sonata":63,"Kia K5":62,"Subaru Legacy":64,"Nissan Altima":65,"Chevrolet Malibu":61},
+      fullsize: {"Honda CR-V":70,"Kia Sportage":72,"2025 Mazda CX-5":73,"Kia Telluride":85,"Honda Pilot":82,"Hyundai Palisade":84,"Ford Expedition":95,"Chevrolet Tahoe":97,"Genesis GV70":110,"Audi Q5":120,"Hyundai Tucson Hybrid":80,"Hyundai Ioniq 5 (electric SUV)":90}
+    };
+
+    // Populate car models
+    function populateModels() {
+      const carType = document.getElementById("carType").value;
+      const modelSelect = document.getElementById("carModel");
+      modelSelect.innerHTML = '<option value="">-- Select Car Model --</option>';
+      if (carType && carOptions[carType]) {
+        carOptions[carType].forEach(model => {
+          const option = document.createElement("option");
+          option.value = model; option.textContent = model;
+          modelSelect.appendChild(option);
+        });
+      }
+    }
+
+    // Auto rate when model selected
+    document.getElementById("carModel").addEventListener("change", function () {
+      const carType = document.getElementById("carType").value;
+      const carModel = this.value;
+      document.getElementById("rate").value =
+        (carType && carRates[carType] && carRates[carType][carModel]) || "";
+    });
+
+    // Calculate days from pickup/dropoff
+    function calcDays() {
+      const pickup = new Date(document.getElementById("pickup").value);
+      const dropoff = new Date(document.getElementById("dropoff").value);
+      if (pickup && dropoff && dropoff > pickup) {
+        const diffTime = dropoff - pickup;
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+        document.getElementById("days").value = diffDays;
+      }
+    }
+
+    // Calculate total and show summary
+    function calculateTotal() {
+      const agentName = document.getElementById('agentName').value;
+      const ext = document.getElementById('ext').value;
+      const company = document.getElementById('company').value;
+      const clientName = document.getElementById('clientName').value;
+      const phone = document.getElementById('phone').value;
+      const email = document.getElementById('email').value;
+      const address = document.getElementById('address').value;
+      const zip = document.getElementById('zip').value;
+      const pickup = document.getElementById('pickup').value;
+      const dropoff = document.getElementById('dropoff').value;
+      const carType = document.getElementById('carType').value;
+      const carModel = document.getElementById('carModel').value;
+      const rate = parseFloat(document.getElementById('rate').value) || 0;
+      const days = parseFloat(document.getElementById('days').value) || 0;
+      const addons = parseFloat(document.getElementById('addons').value) || 0;
+      const discountPercent = parseFloat(document.getElementById('discount').value) || 0;
+      const deposit = parseFloat(document.getElementById('deposit').value) || 0;
+
+      const base = rate * days;
+      const subtotal = base + addons;
+      const discount = subtotal * (discountPercent / 100);
+      const discountedSubtotal = subtotal - discount;
+      const tax = discountedSubtotal * 0.08;
+      const total = discountedSubtotal + tax + deposit;
+
+      const summary = `
+Agent Info
+Agent Name: ${agentName || "-"}
+Ext: ${ext || "-"}
+Company: ${company || "-"}
+
+Client Info
+Name: ${clientName || "-"}
+Phone: ${phone || "-"}
+Email: ${email || "-"}
+Address: ${address || "-"}
+Zip Code: ${zip || "-"}
+
+Rental Info
+Pick-up: ${pickup || "-"}
+Drop-off: ${dropoff || "-"}
+Car Type: ${carType ? carType.charAt(0).toUpperCase() + carType.slice(1) : "-"}
+Car Model: ${carModel || "-"}
+Rate Amount ($): $${rate.toFixed(2)}
+Days: ${days}
+Security Deposit ($): $${deposit.toFixed(2)}
+Add-ons ($): $${addons.toFixed(2)}
+Discount (%): ${discountPercent}%
+Tax (8%): $${tax.toFixed(2)}
+
+Total Bill: $${total.toFixed(2)}
+      `;
+
+      document.getElementById('result').innerText = summary;
+    }
+
+    // Send WhatsApp
+    function sendWhatsApp() {
+      const phone = "919876543210"; // change to your WhatsApp number
+      const message = document.getElementById("result").innerText || "No calculation yet.";
+      const url = "https://wa.me/" + phone + "?text=" + encodeURIComponent(message);
+      window.open(url, "_blank");
+    }
+  </script>
+
+</body>
+</html>
